@@ -1,11 +1,17 @@
 const express = require('express');
+const routes = require('./routes/routes');
 const app = express();
 const PORT = 3000; 
 
-// Configurar una ruta básica
-app.get('/', (req, res) => {
-  res.send('¡Hola, mundo!');
-});
+
+const bodyParser = require('body-parser');
+//const cors = require('cors');
+const routes = require('./routes/routes');
+
+//app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use('/',routes);
 
 // Iniciar el servidor
 app.listen(PORT, () => {

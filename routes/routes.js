@@ -17,18 +17,25 @@ const isAdmin = (req, res, next) => {
   
   // Ruta para registrar un usuario
   router.post('/register', async (req, res) => {
-    const { nombres, apellido_paterno, apellido_materno, rfc, edad, estado_civil, telefono, correo, rol } = req.body;
-    const hashedPassword = await bcrypt.hash(req.body.password, 10); // Encripta la contraseña
-  
     try {
+      const { nombres, apellido_paterno, apellido_materno, rfc, edad, estado_civil, telefono, correo, rol, password } = req.body;
+  
+      if (!password) {
+        return res.status(400).json({ error: 'La contraseña es requerida.' });
+      }
+  
+      const hashedPassword = await bcrypt.hash(password, 10); // Encripta la contraseña
+  
       const [result] = await db.execute(
-        `INSERT INTO Usuario (nombres, apellido_paterno, apellido_materno, rfc, edad, estado_civil, telefono, correo, fecha_alta, rol)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)`,
-        [nombres, apellido_paterno, apellido_materno, rfc, edad, estado_civil, telefono, correo, rol]
+        `INSERT INTO Usuario (nombres, apellido_paterno, apellido_materno, rfc, edad, estado_civil, telefono, correo, fecha_alta, rol, password)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
+        [nombres, apellido_paterno, apellido_materno, rfc, edad, estado_civil, telefono, correo, rol, hashedPassword]
       );
+  
       res.status(201).send(`Usuario registrado con ID: ${result.insertId}`);
     } catch (error) {
-      res.status(500).send(error.message);
+      console.error('Error al registrar usuario:', error.message);
+      res.status(500).json({ error: 'Error en el servidor al registrar el usuario' });
     }
   });
   

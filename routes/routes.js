@@ -128,6 +128,7 @@ router.get("/historial", async (req, res) => {
   }
 });
 
+// routes.js
 router.post("/savecotizacion", async (req, res) => {
   const {
     monto_casa,
@@ -136,7 +137,7 @@ router.post("/savecotizacion", async (req, res) => {
     tipo_cotizacion,
     monto_total,
     sueldo_mensual,
-    years,
+    years, // o plazo, dependiendo de tu esquema de base de datos
     id_banco,
     id_usuario,
   } = req.body;
@@ -154,15 +155,15 @@ router.post("/savecotizacion", async (req, res) => {
 
     // Paso 2: Insertar en la tabla cotizacion
     const [cotizacionResult] = await db.execute(
-      `INSERT INTO cotizacion (monto_casa, monto_credito, mensualidad, tipo_cotizacion, monto_total, sueldo_mensual, yerars, id_banco, id_historial)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO cotizacion (monto_casa, monto_credito, mensualidad, tipo_cotizacion, monto_total, sueldo_mensual, years, id_banco, id_historial)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         monto_casa,
         monto_credito,
         mensualidad,
         tipo_cotizacion,
         monto_total,
-        sueldo_mensual,
+        sueldo_mensual || null, // Asegurarse de que sea nulo si no se proporciona
         years,
         id_banco,
         id_historial,
@@ -182,6 +183,7 @@ router.post("/savecotizacion", async (req, res) => {
       .json({ error: "Error en el servidor al guardar la cotización" });
   }
 });
+
 router.get("/cotizaciones/:id_usuario", async (req, res) => {
     const { id_usuario } = req.params;
   

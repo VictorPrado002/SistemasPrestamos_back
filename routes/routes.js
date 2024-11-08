@@ -152,8 +152,8 @@ router.post("/savecotizacion", async (req, res) => {
 
     // Paso 2: Insertar en la tabla cotizacion
     const [cotizacionResult] = await db.execute(
-      `INSERT INTO cotizacion (monto_casa, monto_credito, mensualidad, tipo_cotizacion, monto_total, sueldo_mensual, yerars, id_banco, id_historial)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO cotizacion (monto_casa, monto_credito, mensualidad, tipo_cotizacion, monto_total, sueldo_mensual, years, id_banco, id_historial)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         monto_casa,
         monto_credito,

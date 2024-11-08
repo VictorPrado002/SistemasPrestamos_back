@@ -195,17 +195,18 @@ router.get("/cotizaciones/:id_usuario", async (req, res) => {
         return res.status(404).json({ error: "Usuario no encontrado" });
       }
   
-      // Consultar el historial y las cotizaciones del usuario
+      // Consultar el historial, cotizaciones y datos del banco del usuario
       const [cotizacionesResult] = await db.execute(
-        `SELECT h.fecha_creacion, c.* 
+        `SELECT h.fecha_creacion, c.*, b.nombre AS banco_nombre, b.tasa_interes, b.years, b.enganche
          FROM Historial h
          JOIN Cotizacion c ON h.id_historial = c.id_historial
+         JOIN Banco b ON c.id_banco = b.id_banco
          WHERE h.id_usuario = ?
          ORDER BY h.fecha_creacion DESC`,
         [id_usuario]
       );
   
-      // Formatear la respuesta para incluir fecha y cotizaciones en un solo objeto
+      // Formatear la respuesta para incluir fecha, cotizaciones y detalles del banco
       const formattedResponse = cotizacionesResult.reduce((acc, row) => {
         const fecha = row.fecha_creacion.toISOString().split("T")[0]; // Formatear la fecha en YYYY-MM-DD
         const cotizacion = {
@@ -216,7 +217,12 @@ router.get("/cotizaciones/:id_usuario", async (req, res) => {
           tipo_cotizacion: row.tipo_cotizacion,
           monto_total: row.monto_total,
           sueldo_mensual: row.sueldo_mensual,
-          id_banco: row.id_banco,
+          banco: {
+            nombre: row.banco_nombre,
+            tasa_interes: parseFloat(row.tasa_interes.toFixed(1)),
+            years: row.years.split(',').map(Number), // Convertir a arreglo de años
+            enganche: parseFloat(row.enganche.toFixed(1))
+          }
         };
   
         // Agrupar las cotizaciones por fecha
@@ -235,7 +241,6 @@ router.get("/cotizaciones/:id_usuario", async (req, res) => {
     }
   });
   
-
 // Rutas para altas, bajas y cambios solo para el administrador
 
 // Eliminar un usuario (solo administrador)

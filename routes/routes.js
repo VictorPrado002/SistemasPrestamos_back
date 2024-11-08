@@ -128,14 +128,6 @@ router.get("/historial", async (req, res) => {
   }
 });
 
-router.get("/cotizaciones", async (req, res) => {
-  try {
-    const [rows] = await db.execute("SELECT * FROM Cotizacion");
-    res.json(rows);
-  } catch (error) {
-    res.status(500).send(error.message);
-  }
-});
 router.post("/savecotizacion", async (req, res) => {
   const {
     monto_casa,
@@ -189,65 +181,60 @@ router.post("/savecotizacion", async (req, res) => {
   }
 });
 router.get("/cotizaciones/:id_usuario", async (req, res) => {
-  const { id_usuario } = req.params;
-
-  try {
-    // Consulta para obtener las cotizaciones y la fecha de creación de cada historial asociado al usuario
-    const [rows] = await db.execute(
-      `SELECT h.fecha_creacion, 
-                c.monto_casa, 
-                c.monto_credito, 
-                c.mensualidad, 
-                c.tipo_cotizacion, 
-                c.monto_total, 
-                c.sueldo_mensual, 
-                c.id_banco
-         FROM cotizacion c
-         JOIN historial h ON c.id_historial = h.id_historial
-         WHERE h.id_usuario = ?
-         ORDER BY h.fecha_creacion ASC`, // Ordenamos por fecha
-      [id_usuario]
-    );
-
-    // Transformamos el resultado para que tenga el formato deseado
-    const result = rows.reduce((acc, row) => {
-      // Buscamos si ya existe un grupo para esta fecha
-      const existingDateGroup = acc.find(
-        (group) => group.fecha === row.fecha_creacion
+    const { id_usuario } = req.params;
+  
+    try {
+      // Verificar si el usuario existe en la base de datos
+      const [userResult] = await db.execute(
+        `SELECT id_usuario FROM Usuario WHERE id_usuario = ?`,
+        [id_usuario]
       );
-
-      const cotizacionData = {
-        monto_casa: row.monto_casa,
-        monto_credito: row.monto_credito,
-        mensualidad: row.mensualidad,
-        tipo_cotizacion: row.tipo_cotizacion,
-        monto_total: row.monto_total,
-        sueldo_mensual: row.sueldo_mensual,
-        id_banco: row.id_banco,
-      };
-
-      if (existingDateGroup) {
-        // Si ya existe la fecha, agregamos la cotización a ese grupo
-        existingDateGroup.cotizaciones.push(cotizacionData);
-      } else {
-        // Si no existe, creamos un nuevo grupo de fecha
-        acc.push({
-          fecha: row.fecha_creacion,
-          cotizaciones: [cotizacionData],
-        });
+  
+      if (userResult.length === 0) {
+        // Si el usuario no existe, retornar un error
+        return res.status(404).json({ error: "Usuario no encontrado" });
       }
-
-      return acc;
-    }, []);
-
-    res.json(result);
-  } catch (error) {
-    console.error("Error al obtener las cotizaciones:", error.message);
-    res
-      .status(500)
-      .json({ error: "Error en el servidor al obtener las cotizaciones" });
-  }
-});
+  
+      // Consultar el historial y las cotizaciones del usuario
+      const [cotizacionesResult] = await db.execute(
+        `SELECT h.fecha_creacion, c.* 
+         FROM Historial h
+         JOIN Cotizacion c ON h.id_historial = c.id_historial
+         WHERE h.id_usuario = ?
+         ORDER BY h.fecha_creacion DESC`,
+        [id_usuario]
+      );
+  
+      // Formatear la respuesta para incluir fecha y cotizaciones en un solo objeto
+      const formattedResponse = cotizacionesResult.reduce((acc, row) => {
+        const fecha = row.fecha_creacion.toISOString().split("T")[0]; // Formatear la fecha en YYYY-MM-DD
+        const cotizacion = {
+          id_cotizacion: row.id_cotizacion,
+          monto_casa: row.monto_casa,
+          monto_credito: row.monto_credito,
+          mensualidad: row.mensualidad,
+          tipo_cotizacion: row.tipo_cotizacion,
+          monto_total: row.monto_total,
+          sueldo_mensual: row.sueldo_mensual,
+          id_banco: row.id_banco,
+        };
+  
+        // Agrupar las cotizaciones por fecha
+        if (!acc[fecha]) {
+          acc[fecha] = [];
+        }
+        acc[fecha].push(cotizacion);
+  
+        return acc;
+      }, {});
+  
+      res.json(formattedResponse);
+    } catch (error) {
+      console.error("Error al obtener cotizaciones:", error.message);
+      res.status(500).json({ error: "Error en el servidor al obtener cotizaciones" });
+    }
+  });
+  
 
 // Rutas para altas, bajas y cambios solo para el administrador
 

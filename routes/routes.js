@@ -313,4 +313,30 @@ router.delete("/deletebanco/:id", isAdmin, async (req, res) => {
     res.status(500).send(error.message);
   }
 });
+
+router.delete("/cotizacion/:id_cotizacion", async (req, res) => {
+  const { id_cotizacion } = req.params;
+
+  try {
+    // Primero, obtenemos el id_historial relacionado a la cotización
+    const [cotizacionResult] = await db.execute(
+      SELECT `id_historial FROM cotizacion WHERE id_cotizacion = ?`,
+      [id_cotizacion]
+    );
+
+    if (cotizacionResult.length === 0) {
+      return res.status(404).json({ error: "Cotización no encontrada" });
+    }
+
+    const id_historial = cotizacionResult[0].id_historial;
+
+    // Eliminamos la entrada en historial, lo cual también eliminará la cotización
+    await db.execute(DELETE `FROM historial WHERE id_historial = ?`, [id_historial]);
+
+    res.status(200).json({ message: "Cotización y su historial eliminado exitosamente" });
+  } catch (error) {
+    console.error("Error al eliminar la cotización:", error.message);
+    res.status(500).json({ error: "Error en el servidor al eliminar la cotización" });
+  }
+});
 module.exports = router;

@@ -136,6 +136,7 @@ router.post("/savecotizacion", async (req, res) => {
     tipo_cotizacion,
     monto_total,
     sueldo_mensual,
+    years,
     id_banco,
     id_usuario,
   } = req.body;
@@ -153,7 +154,7 @@ router.post("/savecotizacion", async (req, res) => {
 
     // Paso 2: Insertar en la tabla cotizacion
     const [cotizacionResult] = await db.execute(
-      `INSERT INTO cotizacion (monto_casa, monto_credito, mensualidad, tipo_cotizacion, monto_total, sueldo_mensual, id_banco, id_historial)
+      `INSERT INTO cotizacion (monto_casa, monto_credito, mensualidad, tipo_cotizacion, monto_total, sueldo_mensual, yerars, id_banco, id_historial)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         monto_casa,
@@ -162,6 +163,7 @@ router.post("/savecotizacion", async (req, res) => {
         tipo_cotizacion,
         monto_total,
         sueldo_mensual,
+        years,
         id_banco,
         id_historial,
       ]
@@ -217,10 +219,10 @@ router.get("/cotizaciones/:id_usuario", async (req, res) => {
           tipo_cotizacion: row.tipo_cotizacion,
           monto_total: row.monto_total,
           sueldo_mensual: row.sueldo_mensual,
+          years: parseInt(row.years, 10), // Mostrar `years` como un valor único
           banco: {
             nombre: row.banco_nombre,
             tasa_interes: parseFloat(row.tasa_interes.toFixed(1)),
-            years: row.years.split(',').map(Number), // Convertir a arreglo de años
             enganche: parseFloat(row.enganche.toFixed(1))
           }
         };

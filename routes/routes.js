@@ -104,14 +104,14 @@ router.get("/usuarios", async (req, res) => {
 router.get("/bancos", async (req, res) => {
   try {
     const [rows] = await db.execute("SELECT * FROM Banco");
-    const formattedRows = rows.map(row => ({
-        ...row,
-        years: row.years.split(',').map(Number),  // Convierte "years" en un arreglo de números
-        tasa_interes: parseFloat(row.tasa_interes.toFixed(1)),
-        enganche: parseFloat(row.enganche.toFixed(1))  
-      }));
-  
-      res.json(formattedRows);
+    const formattedRows = rows.map((row) => ({
+      ...row,
+      years: row.years.split(",").map(Number), // Convierte "years" en un arreglo de números
+      tasa_interes: parseFloat(row.tasa_interes.toFixed(1)),
+      enganche: parseFloat(row.enganche.toFixed(1)),
+    }));
+
+    res.json(formattedRows);
   } catch (error) {
     res.status(500).send(error.message);
   }
@@ -132,6 +132,118 @@ router.get("/cotizaciones", async (req, res) => {
     res.json(rows);
   } catch (error) {
     res.status(500).send(error.message);
+  }
+});
+router.post("/savecotizacion", async (req, res) => {
+  const {
+    monto_casa,
+    monto_credito,
+    mensualidad,
+    tipo_cotizacion,
+    monto_total,
+    sueldo_mensual,
+    id_banco,
+    id_usuario,
+  } = req.body;
+
+  try {
+    // Paso 1: Insertar en la tabla historial
+    const [
+      historialResult,
+    ] = await db.execute(
+      `INSERT INTO historial (fecha_creacion, id_usuario) VALUES (NOW(), ?)`,
+      [id_usuario]
+    );
+
+    const id_historial = historialResult.insertId; // Obtener el id_historial generado
+
+    // Paso 2: Insertar en la tabla cotizacion
+    const [cotizacionResult] = await db.execute(
+      `INSERT INTO cotizacion (monto_casa, monto_credito, mensualidad, tipo_cotizacion, monto_total, sueldo_mensual, id_banco, id_historial)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        monto_casa,
+        monto_credito,
+        mensualidad,
+        tipo_cotizacion,
+        monto_total,
+        sueldo_mensual,
+        id_banco,
+        id_historial,
+      ]
+    );
+
+    res
+      .status(201)
+      .json({
+        message: "Cotización guardada exitosamente",
+        id_cotizacion: cotizacionResult.insertId,
+      });
+  } catch (error) {
+    console.error("Error al guardar la cotización:", error.message);
+    res
+      .status(500)
+      .json({ error: "Error en el servidor al guardar la cotización" });
+  }
+});
+router.get("/cotizaciones/:id_usuario", async (req, res) => {
+  const { id_usuario } = req.params;
+
+  try {
+    // Consulta para obtener las cotizaciones y la fecha de creación de cada historial asociado al usuario
+    const [rows] = await db.execute(
+      `SELECT h.fecha_creacion, 
+                c.monto_casa, 
+                c.monto_credito, 
+                c.mensualidad, 
+                c.tipo_cotizacion, 
+                c.monto_total, 
+                c.sueldo_mensual, 
+                c.id_banco
+         FROM cotizacion c
+         JOIN historial h ON c.id_historial = h.id_historial
+         WHERE h.id_usuario = ?
+         ORDER BY h.fecha_creacion ASC`, // Ordenamos por fecha
+      [id_usuario]
+    );
+
+    // Transformamos el resultado para que tenga el formato deseado
+    const result = rows.reduce((acc, row) => {
+      // Buscamos si ya existe un grupo para esta fecha
+      const existingDateGroup = acc.find(
+        (group) => group.fecha === row.fecha_creacion
+      );
+
+      const cotizacionData = {
+        monto_casa: row.monto_casa,
+        monto_credito: row.monto_credito,
+        mensualidad: row.mensualidad,
+        tipo_cotizacion: row.tipo_cotizacion,
+        monto_total: row.monto_total,
+        sueldo_mensual: row.sueldo_mensual,
+        id_banco: row.id_banco,
+      };
+
+      if (existingDateGroup) {
+        // Si ya existe la fecha, agregamos la cotización a ese grupo
+        existingDateGroup.cotizaciones.push(cotizacionData);
+      } else {
+        // Si no existe, creamos un nuevo grupo de fecha
+        acc.push({
+          fecha: row.fecha_creacion,
+          cotizaciones: [cotizacionData],
+        });
+      }
+
+      return acc;
+    }, []);
+
+    res.json(result);
+  } catch (error) {
+    console.error("Error al obtener las cotizaciones:", error.message);
+    res
+      .status(500)
+      .json({ error: "Error en el servidor al obtener las cotizaciones" });
   }
 });
 
@@ -189,17 +301,16 @@ router.put("/editbanco/:id", isAdmin, async (req, res) => {
 });
 // Eliminar un banco (solo administrador)
 router.delete("/deletebanco/:id", isAdmin, async (req, res) => {
-    try {
-      const [result] = await db.execute(
-        `DELETE FROM Banco WHERE id_banco = ?`,
-        [req.params.id]
-      );
-      if (result.affectedRows === 0) {
-        return res.status(404).send("Banco no encontrado");
-      }
-      res.send("Banco eliminado exitosamente");
-    } catch (error) {
-      res.status(500).send(error.message);
+  try {
+    const [result] = await db.execute(`DELETE FROM Banco WHERE id_banco = ?`, [
+      req.params.id,
+    ]);
+    if (result.affectedRows === 0) {
+      return res.status(404).send("Banco no encontrado");
     }
-  });
+    res.send("Banco eliminado exitosamente");
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
+});
 module.exports = router;

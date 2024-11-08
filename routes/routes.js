@@ -8,12 +8,29 @@ router.get("/", (req, res) => {
   res.send("¡Hola, mundo!");
 });
 // Middleware para verificar si el usuario es administrador
-const isAdmin = (req, res, next) => {
-  if (req.user.rol !== "Administrador") {
-    return res.status(403).send("Acceso denegado");
-  }
-  next();
-};
+const isAdmin = async (req, res, next) => {
+    const { id_usuario } = req.params;
+    
+    try {
+      const [result] = await db.execute(
+        `SELECT rol FROM Usuario WHERE id_usuario = ?`,
+        [id_usuario]
+      );
+  
+      if (result.length === 0) {
+        return res.status(404).send("Usuario no encontrado");
+      }
+  
+      const { rol } = result[0];
+      if (rol !== "Administrador") {
+        return res.status(403).send("Acceso denegado: solo administradores pueden realizar esta acción");
+      }
+  
+      next();
+    } catch (error) {
+      res.status(500).send("Error en el servidor");
+    }
+  };
 
 // Ruta para registrar un usuario
 router.post("/register", async (req, res) => {
@@ -85,7 +102,7 @@ router.post("/login", async (req, res) => {
     }
     // Guarda información del usuario en req.user
     req.user = user;
-    res.status(200).send({ id_usuario: user.id_usuario });
+    res.status(200).send({ id_usuario: user.id_usuario, rol });
   } catch (error) {
     res.status(500).send(error.message);
   }
@@ -134,7 +151,7 @@ router.post("/savecotizacion", async (req, res) => {
     tipo_cotizacion,
     monto_total,
     sueldo_mensual,
-    years,
+    year,
     id_banco,
     id_usuario,
   } = req.body;
@@ -152,7 +169,7 @@ router.post("/savecotizacion", async (req, res) => {
 
     // Paso 2: Insertar en la tabla cotizacion
     const [cotizacionResult] = await db.execute(
-      `INSERT INTO cotizacion (monto_casa, monto_credito, mensualidad, tipo_cotizacion, monto_total, sueldo_mensual, years, id_banco, id_historial)
+      `INSERT INTO cotizacion (monto_casa, monto_credito, mensualidad, tipo_cotizacion, monto_total, sueldo_mensual, year, id_banco, id_historial)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         monto_casa,
@@ -160,8 +177,8 @@ router.post("/savecotizacion", async (req, res) => {
         mensualidad,
         tipo_cotizacion,
         monto_total,
-        sueldo_mensual,
-        years,
+        sueldo_mensual || null,
+        year,
         id_banco,
         id_historial,
       ]
@@ -217,7 +234,7 @@ router.get("/cotizaciones/:id_usuario", async (req, res) => {
           tipo_cotizacion: row.tipo_cotizacion,
           monto_total: row.monto_total,
           sueldo_mensual: row.sueldo_mensual,
-          years: parseInt(row.years, 10), // Mostrar `years` como un valor único
+          years: row.year, // Mostrar `years` como un valor único
           banco: {
             nombre: row.banco_nombre,
             tasa_interes: parseFloat(row.tasa_interes.toFixed(1)),
@@ -243,68 +260,66 @@ router.get("/cotizaciones/:id_usuario", async (req, res) => {
   
 // Rutas para altas, bajas y cambios solo para el administrador
 
-// Eliminar un usuario (solo administrador)
-router.delete("/usuario/:id", isAdmin, async (req, res) => {
-  try {
-    const [
-      result,
-    ] = await db.execute(`DELETE FROM Usuario WHERE id_usuario = ?`, [
-      req.params.id,
-    ]);
-    if (result.affectedRows === 0) {
-      return res.status(404).send("Usuario no encontrado");
+/// Eliminar un usuario (solo administrador)
+router.delete("/usuario/:id/:id_usuario", isAdmin, async (req, res) => {
+    try {
+      const [result] = await db.execute(
+        `DELETE FROM Usuario WHERE id_usuario = ?`,
+        [req.params.id]
+      );
+      if (result.affectedRows === 0) {
+        return res.status(404).send("Usuario no encontrado");
+      }
+      res.send("Usuario eliminado exitosamente");
+    } catch (error) {
+      res.status(500).send(error.message);
     }
-    res.send("Usuario eliminado exitosamente");
-  } catch (error) {
-    res.status(500).send(error.message);
-  }
-});
-// Crear un nuevo banco (solo administrador)
-router.post("/addbanco", isAdmin, async (req, res) => {
-  const { nombre, tasa_interes } = req.body;
-  try {
-    const [
-      result,
-    ] = await db.execute(
-      `INSERT INTO Banco (nombre, tasa_interes) VALUES (?, ?)`,
-      [nombre, tasa_interes]
-    );
-    res.status(201).send(`Banco creado con ID: ${result.insertId}`);
-  } catch (error) {
-    res.status(500).send(error.message);
-  }
-});
-
-// Actualizar un banco (solo administrador)
-router.put("/editbanco/:id", isAdmin, async (req, res) => {
-  const { nombre, tasa_interes } = req.body;
-  try {
-    const [
-      result,
-    ] = await db.execute(
-      `UPDATE Banco SET nombre = ?, tasa_interes = ? WHERE id_banco = ?`,
-      [nombre, tasa_interes, req.params.id]
-    );
-    if (result.affectedRows === 0) {
-      return res.status(404).send("Banco no encontrado");
+  });
+  
+  // Crear un nuevo banco (solo administrador)
+  router.post("/addbanco/:id_usuario", isAdmin, async (req, res) => {
+    const { nombre, tasa_interes } = req.body;
+    try {
+      const [result] = await db.execute(
+        `INSERT INTO Banco (nombre, tasa_interes) VALUES (?, ?)`,
+        [nombre, tasa_interes]
+      );
+      res.status(201).send(`Banco creado con ID: ${result.insertId}`);
+    } catch (error) {
+      res.status(500).send(error.message);
     }
-    res.send("Banco actualizado exitosamente");
-  } catch (error) {
-    res.status(500).send(error.message);
-  }
-});
-// Eliminar un banco (solo administrador)
-router.delete("/deletebanco/:id", isAdmin, async (req, res) => {
-  try {
-    const [result] = await db.execute(`DELETE FROM Banco WHERE id_banco = ?`, [
-      req.params.id,
-    ]);
-    if (result.affectedRows === 0) {
-      return res.status(404).send("Banco no encontrado");
+  });
+  
+  // Actualizar un banco (solo administrador)
+  router.put("/editbanco/:id/:id_usuario", isAdmin, async (req, res) => {
+    const { nombre, tasa_interes } = req.body;
+    try {
+      const [result] = await db.execute(
+        `UPDATE Banco SET nombre = ?, tasa_interes = ? WHERE id_banco = ?`,
+        [nombre, tasa_interes, req.params.id]
+      );
+      if (result.affectedRows === 0) {
+        return res.status(404).send("Banco no encontrado");
+      }
+      res.send("Banco actualizado exitosamente");
+    } catch (error) {
+      res.status(500).send(error.message);
     }
-    res.send("Banco eliminado exitosamente");
-  } catch (error) {
-    res.status(500).send(error.message);
-  }
-});
+  });
+  
+  // Eliminar un banco (solo administrador)
+  router.delete("/deletebanco/:id/:id_usuario", isAdmin, async (req, res) => {
+    try {
+      const [result] = await db.execute(
+        `DELETE FROM Banco WHERE id_banco = ?`,
+        [req.params.id]
+      );
+      if (result.affectedRows === 0) {
+        return res.status(404).send("Banco no encontrado");
+      }
+      res.send("Banco eliminado exitosamente");
+    } catch (error) {
+      res.status(500).send(error.message);
+    }
+  });
 module.exports = router;

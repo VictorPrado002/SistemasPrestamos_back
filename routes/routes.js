@@ -104,7 +104,14 @@ router.get("/usuarios", async (req, res) => {
 router.get("/bancos", async (req, res) => {
   try {
     const [rows] = await db.execute("SELECT * FROM Banco");
-    res.json(rows);
+    const formattedRows = rows.map(row => ({
+        ...row,
+        years: row.years.split(',').map(Number),  // Convierte "years" en un arreglo de números
+        tasa_interes: parseFloat(row.tasa_interes.toFixed(1)),
+        enganche: parseFloat(row.enganche.toFixed(1))  
+      }));
+  
+      res.json(formattedRows);
   } catch (error) {
     res.status(500).send(error.message);
   }

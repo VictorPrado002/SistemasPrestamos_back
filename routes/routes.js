@@ -10,12 +10,14 @@ router.get("/", (req, res) => {
   res.send("¡Hola, mundo!");
 });
 // Middleware para verificar si el usuario es administrador
+// Middleware para verificar si el usuario es administrador
 const isAdmin = (req, res, next) => {
-  if (req.user.rol !== "Administrador") {
+  if (!req.user || req.user.rol !== "Administrador") {
     return res.status(403).send("Acceso denegado");
   }
   next();
 };
+
 
 // Ruta para registrar un usuario
 router.post("/register", async (req, res) => {
@@ -87,7 +89,7 @@ router.post("/login", async (req, res) => {
     }
     // Guarda información del usuario en req.user
     req.user = user;
-    res.status(200).send({ id_usuario: user.id_usuario });
+    res.status(200).send({ id_usuario: user.id_usuario, rol: user.rol});
   } catch (error) {
     res.status(500).send(error.message);
   }
@@ -137,7 +139,7 @@ router.post("/savecotizacion", async (req, res) => {
     tipo_cotizacion,
     monto_total,
     sueldo_mensual,
-    years, // o plazo, dependiendo de tu esquema de base de datos
+    year, // o plazo, dependiendo de tu esquema de base de datos
     id_banco,
     id_usuario,
   } = req.body;
@@ -155,7 +157,7 @@ router.post("/savecotizacion", async (req, res) => {
 
     // Paso 2: Insertar en la tabla cotizacion
     const [cotizacionResult] = await db.execute(
-      `INSERT INTO cotizacion (monto_casa, monto_credito, mensualidad, tipo_cotizacion, monto_total, sueldo_mensual, years, id_banco, id_historial)
+      `INSERT INTO cotizacion (monto_casa, monto_credito, mensualidad, tipo_cotizacion, monto_total, sueldo_mensual, year, id_banco, id_historial)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         monto_casa,
@@ -164,7 +166,7 @@ router.post("/savecotizacion", async (req, res) => {
         tipo_cotizacion,
         monto_total,
         sueldo_mensual || null, // Asegurarse de que sea nulo si no se proporciona
-        years,
+        year,
         id_banco,
         id_historial,
       ]
@@ -221,7 +223,7 @@ router.get("/cotizaciones/:id_usuario", async (req, res) => {
           tipo_cotizacion: row.tipo_cotizacion,
           monto_total: row.monto_total,
           sueldo_mensual: row.sueldo_mensual,
-          years: parseInt(row.years, 10), // Mostrar `years` como un valor único
+          years: row.year, // Mostrar `years` como un valor único
           banco: {
             nombre: row.banco_nombre,
             tasa_interes: parseFloat(row.tasa_interes.toFixed(1)),
@@ -252,7 +254,7 @@ router.delete("/usuario/:id", isAdmin, async (req, res) => {
   try {
     const [
       result,
-    ] = await db.execute(`DELETE FROM Usuario WHERE id_usuario = ?`, [
+    ] = await db.execute(`DELETE FROM usuario WHERE id_usuario = ?`, [
       req.params.id,
     ]);
     if (result.affectedRows === 0) {

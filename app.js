@@ -10,7 +10,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/',routes);
 
-// Iniciar el servidor
-app.listen(PORT, () => {
-  console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
-});
+module.exports = app;
+
+// Iniciar el servidor solo si ejecutas este archivo directamente
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
+  });
+}

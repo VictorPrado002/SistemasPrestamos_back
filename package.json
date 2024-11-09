@@ -5,7 +5,22 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon app.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "lint": "eslint .",
+    "test": "nyc mocha"
+  },
+  "nyc": {
+    "reporter": [
+      "text",
+      "lcov",
+      "json-summary"
+    ],
+    "include": [
+      "src/**/*.js"
+    ],
+    "exclude": [
+      "src/test/**/*.js"
+    ],
+    "all": true
   },
   "keywords": [],
   "author": "",
@@ -15,5 +30,15 @@
     "cors": "^2.8.5",
     "express": "^4.21.1",
     "mysql2": "^3.11.4"
+  },
+  "devDependencies": {
+    "chai": "^4.5.0",
+    "eslint": "^9.14.0",
+    "eslint-plugin-complexity": "^1.0.2",
+    "globals": "^15.12.0",
+    "mocha": "^10.8.2",
+    "nyc": "^17.1.0",
+    "sinon": "^19.0.2",
+    "supertest": "^7.0.0"
   }
 }

@@ -102,7 +102,7 @@ router.post("/login", async (req, res) => {
     }
     // Guarda información del usuario en req.user
     req.user = user;
-    res.status(200).send({ id_usuario: user.id_usuario, rol });
+    res.status(200).send({ id_usuario: user.id_usuario, rol: user.rol });
   } catch (error) {
     res.status(500).send(error.message);
   }
@@ -278,17 +278,19 @@ router.delete("/usuario/:id/:id_usuario", isAdmin, async (req, res) => {
   
   // Crear un nuevo banco (solo administrador)
   router.post("/addbanco/:id_usuario", isAdmin, async (req, res) => {
-    const { nombre, tasa_interes } = req.body;
+    const { nombre, tasa_interes, years, enganche } = req.body; // Agregar 'enganche' en el cuerpo de la solicitud
     try {
       const [result] = await db.execute(
-        `INSERT INTO Banco (nombre, tasa_interes) VALUES (?, ?)`,
-        [nombre, tasa_interes]
+        `INSERT INTO Banco (nombre, tasa_interes, years, enganche) VALUES (?, ?, ?, ?)`,
+        [nombre, tasa_interes, years, enganche] // Pasar 'enganche' como valor
       );
       res.status(201).send(`Banco creado con ID: ${result.insertId}`);
     } catch (error) {
       res.status(500).send(error.message);
     }
   });
+  
+  
   
   // Actualizar un banco (solo administrador)
   router.put("/editbanco/:id/:id_usuario", isAdmin, async (req, res) => {
